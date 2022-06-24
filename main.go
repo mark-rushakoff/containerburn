@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -55,6 +56,10 @@ func runContainer(ctx context.Context, cli *client.Client, idxCh <-chan int) {
 	}
 }
 
+// Fake exposed port.
+// Nothing listens on this, but using a const for consistency.
+const exposedPort = "8080/tcp"
+
 func runSleep(ctx context.Context, cli *client.Client, idx int) {
 	name := fmt.Sprintf("burn-%d", idx)
 
@@ -68,9 +73,18 @@ func runSleep(ctx context.Context, cli *client.Client, idx int) {
 			Hostname: name,
 			Image:    alpineImage,
 			Cmd:      []string{"sleep", strconv.Itoa(dur)},
+
+			ExposedPorts: nat.PortSet{
+				exposedPort: struct{}{},
+			},
 		},
 		&container.HostConfig{
 			AutoRemove: true,
+			PortBindings: nat.PortMap{
+				exposedPort: []nat.PortBinding{
+					{HostIP: "127.0.0.1"},
+				},
+			},
 		},
 		&network.NetworkingConfig{
 			EndpointsConfig: nil,
